@@ -21,3 +21,4 @@ Conferidor visual e inteligente para jogos da Lotofácil.
 ## Autor
 Janer Dorneles
 
+https://janerdorneles.github.io/Lotofacil-Ano/
