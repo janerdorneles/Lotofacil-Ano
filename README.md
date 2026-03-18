@@ -1,7 +1,5 @@
 # Conferência Automática Lotofácil
-
 #### Análise de Apostas por Ano
-
 Conferidor visual e inteligente para jogos da Lotofácil.
 
 ## Recursos
