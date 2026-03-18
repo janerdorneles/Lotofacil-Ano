@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verificador Lotofácil</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:       #0d0d0f;
+            --surface:  #141417;
+            --card:     #1a1a1f;
+            --primary:  #c2007a;
+            --primary2: #e8009a;
+            --glow:     rgba(194,0,122,0.18);
+            --success:  #00e5a0;
+            --warn:     #ffb700;
+            --text:     #e8e8f0;
+            --muted:    #7a7a90;
+            --border:   rgba(255,255,255,0.07);
+            --mono:     'Space Mono', monospace;
+            --sans:     'Syne', sans-serif;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 30px 16px 60px;
+        }
+
+        /* Grain overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+            pointer-events: none;
+            opacity: 0.4;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 820px;
+        }
+
+        /* ── HEADER ── */
+        header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .logo-tag {
+            display: inline-block;
+            font-family: var(--mono);
+            font-size: 10px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            padding: 4px 12px;
+            border-radius: 2px;
+            margin-bottom: 14px;
+        }
+
+        h1 {
+            font-size: clamp(1.6rem, 4vw, 2.4rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            background: linear-gradient(135deg, #fff 40%, var(--primary2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.1;
+        }
+
+        .subtitle {
+            margin-top: 8px;
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--muted);
+            letter-spacing: 1px;
+        }
+
+        /* ── CARD ── */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px;
+            margin-bottom: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset;
+        }
+
+        /* ── FORM ── */
+        .input-row {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .input-group.grow { flex: 1; min-width: 220px; }
+        .input-group.fixed { width: 130px; }
+
+        label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .label-num {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        input::placeholder {
+            color: rgba(122, 122, 144, 0.50);
+        }
+
+        .input-wrap {
+            display: flex;
+            gap: 8px;
+        }
+
+        input {
+            background: #111114;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 13px 16px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-family: var(--mono);
+            width: 100%;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--glow);
+        }
+
+        /* ── BUTTONS ── */
+        .btn {
+            background: #91278f;
+            color: #fff;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            font-family: var(--sans);
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s, box-shadow 0.2s;
+            letter-spacing: 0.02em;
+            box-shadow: 0 4px 24px rgba(194,0,122,0.3);
+        }
+
+        .btn:hover  { opacity: 0.88; box-shadow: 0 6px 30px rgba(194,0,122,0.45); }
+        .btn:active { transform: scale(0.97); }
+        .btn:disabled { background: #2a2a2f; box-shadow: none; cursor: not-allowed; color: var(--muted); }
+
+        .btn-full { width: 100%; padding: 16px; font-size: 16px; }
+
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            box-shadow: none;
+            padding: 13px 18px;
+            white-space: nowrap;
+        }
+
+        .btn-ghost:hover { border-color: var(--primary); color: var(--primary); box-shadow: none; opacity: 1; }
+
+        /* ── STATUS ── */
+        .status-box {
+            margin-top: 16px;
+            min-height: 24px;
+            text-align: center;
+        }
+
+        .status-inner {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--muted);
+            padding: 6px 14px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 20px;
+            border: 1px solid var(--border);
+        }
+
+        .status-inner.hidden { display: none; }
+
+        .spinner {
+            width: 12px; height: 12px;
+            border: 2px solid rgba(194,0,122,0.3);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            flex-shrink: 0;
+        }
+
+        .spinner.done { display: none; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── TABLE ── */
+        .table-wrap {
+            overflow-x: auto;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        thead th {
+            background: #111114;
+            padding: 13px 18px;
+            text-align: center;
+            font-family: var(--mono);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            color: var(--primary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        tbody tr {
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            transition: background 0.15s;
+        }
+
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: rgba(255,255,255,0.03); }
+
+        td {
+            padding: 13px 18px;
+            text-align: center;
+            font-family: var(--mono);
+            font-size: 13px;
+        }
+
+        .td-concurso { color: var(--muted); }
+        .td-data     { color: var(--text); }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .badge-11 { background: rgba(0,229,160,0.12); color: var(--success); }
+        .badge-12 { background: rgba(0,229,160,0.18); color: var(--success); }
+        .badge-13 { background: rgba(0,229,160,0.25); color: var(--success); }
+        .badge-14 { background: rgba(255,183,0,0.18); color: var(--warn); }
+        .badge-15 { background: rgba(194,0,122,0.25); color: var(--primary2); }
+
+        .prize-real     { color: var(--success); font-weight: 700; }
+        .prize-est      { color: var(--warn);    font-weight: 700; }
+        .prize-accum    { color: var(--primary2); font-weight: 700; }
+
+        .est-tag {
+            font-size: 9px;
+            letter-spacing: 1px;
+            opacity: 0.7;
+            display: block;
+        }
+
+        /* ── TOTAIS ── */
+        .totais-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 540px) {
+            .totais-grid { grid-template-columns: 1fr; }
+            .input-group.fixed { width: 100%; }
+        }
+
+        .stat-card {
+            background: #111114;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-family: var(--mono);
+            font-size: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-family: var(--mono);
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .stat-value.green  { color: var(--success); }
+        .stat-value.purple { color: var(--primary2); }
+
+        /* ── EMPTY STATE ── */
+        .empty-state {
+            padding: 50px 20px;
+            text-align: center;
+            color: var(--muted);
+        }
+
+        .empty-state svg { opacity: 0.2; margin-bottom: 12px; }
+        .empty-state p { font-family: var(--mono); font-size: 12px; letter-spacing: 1px; }
+
+        /* ── LEGENDA ── */
+        .legenda {
+            margin-top: 16px;
+            padding: 12px 16px;
+            background: rgba(255,183,0,0.06);
+            border: 1px solid rgba(255,183,0,0.15);
+            border-radius: 8px;
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--warn);
+            display: none;
+        }
+
+        .legenda.visible { display: block; }
+
+        /* ── PROXY BADGE ── */
+        .proxy-info {
+            font-family: var(--mono);
+            font-size: 10px;
+            color: var(--muted);
+            text-align: right;
+            margin-top: 10px;
+            letter-spacing: 1px;
+        }
+
+        .proxy-dot {
+            display: inline-block;
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--success);
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+
+        footer {
+            text-align: center;
+            padding: 5px;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            border-top: 1px solid var(--secondary);
+	    color: rgba(122, 122, 144, 0.60);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <header>
+        <div class="logo-tag">Lotofácil · Verificador</div>
+        <h1>Análise de Apostas<br>por Ano</h1>
+        <p class="subtitle">// api.caixa.gov.br · dados oficiais em tempo real</p>
+    </header>
+
+    <div class="card">
+        <div class="input-row">
+            <div class="input-group grow">
+                <label for="dezenas"><span class="label-num">15</span> Dezenas apostadas (1 – 25)</label>
+                <div class="input-wrap">
+                    <input type="text" id="dezenas"
+                           placeholder="Ex: 1, 7, 11, 15...  ou  1 7 11 15..."
+                           autocomplete="off">
+                    <button class="btn btn-ghost" onclick="limparTudo()" title="Limpar">✕</button>
+                </div>
+            </div>
+            <div class="input-group fixed">
+                <label for="ano">Ano</label>
+                <input type="number" id="ano" placeholder="2026" min="2003" max="2030">
+            </div>
+        </div>
+
+        <button id="btnVerificar" class="btn btn-full" onclick="verificarApostas()">
+            ▶ Verificar Sorteios
+        </button>
+
+        <div class="status-box">
+            <div id="statusInner" class="status-inner hidden">
+                <div id="statusSpinner" class="spinner"></div>
+                <span id="statusText"></span>
+            </div>
+        </div>
+
+        <div id="proxyInfo" class="proxy-info" style="display:none;">
+            <span class="proxy-dot"></span><span id="proxyLabel"></span>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Concurso</th>
+                        <th>Data</th>
+                        <th>Acertos</th>
+                        <th>Prêmio</th>
+                    </tr>
+                </thead>
+                <tbody id="resultadosBody">
+                    <tr>
+                        <td colspan="4">
+                            <div class="empty-state">
+                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                                </svg>
+                                <p>Informe suas dezenas e o ano para começar</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div id="legendaEst" class="legenda">
+            ⚠ Valores marcados com <strong>EST</strong> são estimativas — a API não retornou o prêmio exato
+            para esse concurso. Verifique em <a href="https://loterias.caixa.gov.br" target="_blank" style="color:inherit">loterias.caixa.gov.br</a>.
+        </div>
+
+        <div class="totais-grid">
+            <div class="stat-card">
+                <div class="stat-label">Concursos analisados</div>
+                <div class="stat-value" id="totalConcursos">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Apostas premiadas</div>
+                <div class="stat-value purple" id="totalPremiadas">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total ganho no ano</div>
+                <div class="stat-value green" id="totalAno">—</div>
+            </div>
+        </div>
+    </div>
+
+    <footer>Desenvolvido por Janer Dorneles • Lotofácil Ano</footer>
+
+</div><!-- /container -->
+
+<script>
+"use strict";
+
+// ── Constantes ─────────────────────────────────────────────────────────────────
+const CAIXA_URL = 'https://servicebus2.caixa.gov.br/portaldeloterias/api/lotofacil/';
+
+/**
+ * PROXIES — ordem testada (codetabs fica em 2º como no v4 que funcionava).
+ * ⚠ REMOVIDOS: crossorigin.me (ESET: JS/Redirector.SWD), htmldriven, cors-anywhere.
+ * NOTA: codetabs recebe URL *sem* encodeURIComponent — é o comportamento esperado.
+ */
+const PROXY_LIST = [
+    { name: 'corsproxy.io',   fn: u => `https://corsproxy.io/?${encodeURIComponent(u)}` },
+    { name: 'codetabs',       fn: u => `https://api.codetabs.com/v1/proxy?quest=${u}` },
+    { name: 'allorigins/raw', fn: u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
+    { name: 'allorigins/get', fn: u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}` },
+    { name: 'corsproxy.org',  fn: u => `https://corsproxy.org/?${encodeURIComponent(u)}` },
+    { name: 'cors.lol',       fn: u => `https://api.cors.lol/?url=${encodeURIComponent(u)}` },
+    { name: 'thingproxy',     fn: u => `https://thingproxy.freeboard.io/fetch/${u}` },
+    { name: 'direto',         fn: u => u },
+];
+
+/**
+ * v7 — APIs alternativas independentes para segundo passe (deep fetch).
+ * Usadas quando o proxy principal retorna dados sem prêmio.
+ */
+const ALT_APIS = [
+    {
+        name: 'loteriascaixa-api',
+        fn:   id => `https://loteriascaixa-api.herokuapp.com/api/lotofacil/${id}`,
+        parse: d => {
+            if (!d?.concurso && !d?.numero) return null;
+            const numero = d.concurso ?? d.numero;
+            const data   = d.data ?? d.dataApuracao;
+            const dezenas = d.dezenas ?? d.listaDezenas;
+            if (!numero || !data || !Array.isArray(dezenas)) return null;
+
+            const premiacoes = d.premiacoes ?? d.listaRateioPremio ?? [];
+            return {
+                numero,
+                dataApuracao: data,
+                listaDezenas: dezenas,
+                listaRateioPremio: premiacoes.map(p => {
+                    const desc = String(p.descricao ?? p.faixaDescricao ?? p.descricaoFaixa ?? p.acertos ?? '');
+                    const val  = p.premio ?? p.valor ?? p.valorPremio ?? 0;
+                    const ganh = p.ganhadores ?? p.numeroDeGanhadores ?? 0;
+                    const hits = [15,14,13,12,11].find(n => desc.includes(String(n)));
+                    return {
+                        descricaoFaixa:      desc,
+                        faixa:               hits ? (16 - hits) : null,
+                        valorPremio:         val,
+                        numeroDeGanhadores:  ganh
+                    };
+                }),
+                valorAcumulado:              parsePrizeValue(d.valorAcumulado ?? d.acumuladoProxConcurso ?? 0),
+                valorAcumuladoProximoConcurso: parsePrizeValue(d.acumuladoProxConcurso ?? d.valorAcumuladoProximoConcurso ?? 0),
+                acumulou:                    d.acumulou ?? d.acumulado ?? false
+            };
+        }
+    },
+    {
+        name: 'servicebus-direto',
+        fn:   id => CAIXA_URL + id,
+        parse: d => {
+            if (!d?.numero || !d?.dataApuracao) return null;
+            return d;  // já no formato Caixa nativo
+        }
+    }
+];
+
+let _cachedProxy     = null;
+let _cachedProxyName = '';
+
+// ── Utilitários ────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+function fmtBRL(v) {
+    return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+/**
+ * Converte valor retornado pela API para float.
+ * A Caixa pode retornar: number, "1.500,00", "R$ 1.500,00", null, etc.
+ */
+function parsePrizeValue(v) {
+    if (v === null || v === undefined) return 0;
+    if (typeof v === 'number') return isNaN(v) ? 0 : v;
+    if (typeof v === 'string') {
+        const clean = v.replace(/[R$\s]/gi, '').replace(/\./g, '').replace(',', '.');
+        const n = parseFloat(clean);
+        return isNaN(n) ? 0 : n;
+    }
+    return 0;
+}
+
+// ── Status UI ──────────────────────────────────────────────────────────────────
+function setStatus(msg, done = false) {
+    const inner   = $('statusInner');
+    const spinner = $('statusSpinner');
+    const text    = $('statusText');
+    if (!msg) { inner.classList.add('hidden'); return; }
+    inner.classList.remove('hidden');
+    text.textContent = msg;
+    spinner.classList.toggle('done', done);
+}
+
+function showProxyInfo(name) {
+    $('proxyInfo').style.display = 'block';
+    $('proxyLabel').textContent  = `rota: ${name}`;
+}
+
+// ── Fetch principal: proxies Caixa + fallback API independente ────────────────
+async function fetchDraw(id = '', statusCb = null) {
+    const targetUrl = CAIXA_URL + id;
+
+    const queue = _cachedProxy
+        ? [_cachedProxy, ...PROXY_LIST.filter(p => p !== _cachedProxy)]
+        : PROXY_LIST;
+
+    // — Tentativa 1: proxies CORS apontando para a API da Caixa —
+    for (let i = 0; i < queue.length; i++) {
+        const proxy = queue[i];
+        if (statusCb) statusCb(`Testando rota ${i + 1}/${queue.length}: ${proxy.name}…`);
+
+        try {
+            const ctl = new AbortController();
+            const tid = setTimeout(() => ctl.abort(), 7000);
+
+            const res = await fetch(proxy.fn(targetUrl), { signal: ctl.signal });
+            clearTimeout(tid);
+            if (!res.ok) continue;
+
+            let data = await res.json();
+
+            // allorigins/get embrulha em { contents: "{...}" }
+            if (data?.contents && typeof data.contents === 'string') {
+                try { data = JSON.parse(data.contents); } catch (_) { continue; }
+            }
+
+            if (!data?.numero || !data?.dataApuracao) continue;
+
+            if (_cachedProxy !== proxy) {
+                _cachedProxy     = proxy;
+                _cachedProxyName = proxy.name;
+                showProxyInfo(proxy.name);
+            }
+            return data;
+
+        } catch (_) { /* timeout ou erro de rede — tenta próximo */ }
+    }
+
+    // — Tentativa 2: APIs alternativas independentes —
+    for (const alt of ALT_APIS) {
+        try {
+            const altId = id === '' ? 'latest' : id;
+            const ctl   = new AbortController();
+            const tid   = setTimeout(() => ctl.abort(), 8000);
+
+            if (statusCb) statusCb(`Tentando fonte alternativa: ${alt.name}…`);
+
+            const res = await fetch(alt.fn(altId), { signal: ctl.signal });
+            clearTimeout(tid);
+
+            if (res.ok) {
+                const raw = await res.json();
+                const d   = alt.parse(raw);
+                if (d) return d;
+            }
+        } catch (_) { /* fallback também falhou */ }
+    }
+
+    return null;
+}
+
+/**
+ * v7 — Deep fetch: busca um concurso ESPECIFICAMENTE para resolver prêmio.
+ * Tenta todas as APIs alternativas com proxies variados.
+ * Diferente do fetchDraw normal, aqui tentamos TODAS as rotas (não para no cache).
+ */
+async function deepFetchDraw(id) {
+    // Tenta cada API alternativa primeiro (fontes independentes)
+    for (const alt of ALT_APIS) {
+        try {
+            const ctl = new AbortController();
+            const tid = setTimeout(() => ctl.abort(), 10000);
+            const res = await fetch(alt.fn(id), { signal: ctl.signal });
+            clearTimeout(tid);
+            if (res.ok) {
+                const raw = await res.json();
+                const d   = alt.parse(raw);
+                if (d && hasValidPrizeData(d)) return d;
+            }
+        } catch (_) {}
+    }
+
+    // Tenta TODOS os proxies (ignora cache, força varredura completa)
+    const targetUrl = CAIXA_URL + id;
+    for (const proxy of PROXY_LIST) {
+        try {
+            const ctl = new AbortController();
+            const tid = setTimeout(() => ctl.abort(), 8000);
+            const res = await fetch(proxy.fn(targetUrl), { signal: ctl.signal });
+            clearTimeout(tid);
+            if (!res.ok) continue;
+
+            let data = await res.json();
+            if (data?.contents && typeof data.contents === 'string') {
+                try { data = JSON.parse(data.contents); } catch (_) { continue; }
+            }
+            if (data?.numero && data?.dataApuracao && hasValidPrizeData(data)) {
+                return data;
+            }
+        } catch (_) {}
+    }
+
+    return null;
+}
+
+/**
+ * Verifica se o draw contém dados de prêmio utilizáveis em alguma faixa.
+ */
+function hasValidPrizeData(draw) {
+    if (!Array.isArray(draw.listaRateioPremio)) return false;
+    return draw.listaRateioPremio.some(r => {
+        const v = parsePrizeValue(r.valorPremio ?? r.valor ?? r.premio ?? 0);
+        return v > 0;
+    });
+}
+
+// ── Fetch com retentativa (para draws individuais no lote) ───────────────────
+async function fetchDrawWithRetry(id, maxRetries = 3) {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        const result = await fetchDraw(id);
+        if (result) return result;
+        if (attempt < maxRetries - 1) {
+            await new Promise(r => setTimeout(r, 800 + attempt * 500));
+        }
+    }
+    return null;
+}
+
+// ── Extração de prêmio da API ──────────────────────────────────────────────────
+/**
+ * v7 — Estratégias em cascata aprofundadas:
+ *   1. Busca por descricaoFaixa / faixaDescricao (texto contendo nº acertos)
+ *   2. Busca por faixa numérica (faixa 1 = 15 acertos … faixa 5 = 11)
+ *   3. Busca por índice posicional (índice 0 = 15 acertos … índice 4 = 11)
+ *   4. Detecta acumulado: valorPremio=0 + 0 ganhadores = ACUMULOU (não é EST)
+ *   5. Campos alternativos de acumulado (15 acertos)
+ *   6. Campos top-level: valorEstimadoProximoConcurso, etc.
+ */
+function extractPrize(draw, hits) {
+    let prize   = 0;
+    let fromAPI = false;
+    let isAccum = false;
+
+    const rateios = draw.listaRateioPremio;
+
+    if (Array.isArray(rateios) && rateios.length > 0) {
+
+        // ── Estratégia 1: busca por texto da descrição ──
+        let rateio = rateios.find(r => {
+            const desc = String(
+                r.faixaDescricao ?? r.descricaoFaixa ?? r.descricao ?? ''
+            ).toLowerCase();
+            // Procura "15 acerto", "14 acertos", etc. no texto
+            return desc.includes(String(hits) + ' acerto') ||
+                   desc.includes(String(hits) + ' ponto')  ||
+                   desc === String(hits);
+        });
+
+        // ── Estratégia 1b: busca mais flexível — apenas o número no texto ──
+        if (!rateio) {
+            rateio = rateios.find(r => {
+                const desc = String(
+                    r.faixaDescricao ?? r.descricaoFaixa ?? r.descricao ?? ''
+                );
+                // Usa regex para encontrar o número exato (evita 1 matchando 11, 12, etc.)
+                const regex = new RegExp('\\b' + hits + '\\b');
+                return regex.test(desc);
+            });
+        }
+
+        // ── Estratégia 2: busca por campo faixa numérico ──
+        // Padrão Caixa: faixa 1 = 15 acertos, faixa 2 = 14, ..., faixa 5 = 11
+        if (!rateio) {
+            const targetFaixa = 16 - hits;
+            rateio = rateios.find(r => {
+                const f = r.faixa ?? r.faixaNumero ?? r.numero;
+                return Number(f) === targetFaixa;
+            });
+        }
+
+        // ── Estratégia 3: índice posicional ──
+        if (!rateio) {
+            const idx = 15 - hits;
+            if (idx >= 0 && idx < rateios.length) {
+                rateio = rateios[idx];
+            }
+        }
+
+        // ── Extrai valor do rateio encontrado ──
+        if (rateio) {
+            const raw = rateio.valorPremio ?? rateio.valor ?? rateio.premio ?? null;
+            const v   = parsePrizeValue(raw);
+
+            // Número de ganhadores — campo pode ter nomes variados
+            const winners = parseInt(
+                rateio.numeroDeGanhadores ??
+                rateio.ganhadores ??
+                rateio.qtdeGanhadores ??
+                rateio.quantidade ??
+                -1, 10
+            );
+
+            if (v > 0) {
+                // ✅ API retornou valor positivo
+                prize   = v;
+                fromAPI = true;
+            } else if (winners === 0) {
+                // ✅ 0 ganhadores + valor 0 = prêmio acumulou (API respondeu corretamente)
+                prize   = 0;
+                fromAPI = true;
+                isAccum = true;
+            }
+            // Se v === 0 e winners > 0 (ou desconhecido), a API falhou — fromAPI fica false
+        }
+    }
+
+    // ── Estratégia 4: campos de acumulado para 15 acertos ──
+    if (hits === 15 && !fromAPI) {
+        const accumFields = [
+            'valorAcumuladoFaixa1',
+            'valorAcumuladoFaixa_1',
+            'acumuladoFaixa1',
+            'valorAcumulado',
+            'valorAcumuladoProximoConcurso',
+            'acumuladoProxConcurso'
+        ];
+        for (const f of accumFields) {
+            const v = parsePrizeValue(draw[f]);
+            if (v > 0) {
+                prize   = v;
+                fromAPI = true;
+                isAccum = true;
+                break;
+            }
+        }
+    }
+
+    // ── Estratégia 5: flag booleano acumulou/acumulado ──
+    if (hits === 15 && !fromAPI) {
+        if (draw.acumulou === true || draw.acumulado === true) {
+            prize   = 0;
+            fromAPI = true;
+            isAccum = true;
+        }
+    }
+
+    // ── Estratégia 6: para 11-14 acertos, se rateio existe mas valor é 0
+    //    e não sabemos os ganhadores, tentamos campo valorPremio de forma bruta ──
+    if (!fromAPI && rateios && rateios.length > 0) {
+        // Tenta todas as variações de campos de valor em todos os rateios
+        for (const r of rateios) {
+            const desc = String(
+                r.faixaDescricao ?? r.descricaoFaixa ?? r.descricao ?? ''
+            );
+            const faixa = Number(r.faixa ?? 0);
+            const targetFaixa = 16 - hits;
+
+            const isMatch = desc.includes(String(hits)) || faixa === targetFaixa;
+            if (!isMatch) continue;
+
+            // Procura em TODOS os campos possíveis de valor
+            for (const key of Object.keys(r)) {
+                if (key.toLowerCase().includes('valor') ||
+                    key.toLowerCase().includes('premi') ||
+                    key.toLowerCase().includes('prize')) {
+                    const v = parsePrizeValue(r[key]);
+                    if (v > 0) {
+                        prize   = v;
+                        fromAPI = true;
+                        break;
+                    }
+                }
+            }
+            if (fromAPI) break;
+        }
+    }
+
+    return { prize, fromAPI, isAccum };
+}
+
+// ── Busca binária — primeiro concurso do ano ───────────────────────────────────
+async function findFirstDrawOfYear(year, maxId) {
+    let lo = 1, hi = maxId, ans = -1;
+    while (lo <= hi) {
+        const mid  = Math.floor((lo + hi) / 2);
+        let   draw = await fetchDraw(mid);
+
+        if (!draw) {
+            draw = await fetchDraw(mid - 1) || await fetchDraw(mid + 1);
+            if (!draw) return -1;
+        }
+
+        const y = parseInt(draw.dataApuracao.split('/')[2], 10);
+        if (y === year)    { ans = mid; hi = mid - 1; }
+        else if (y < year) { lo = mid + 1; }
+        else               { hi = mid - 1; }
+    }
+    return ans;
+}
+
+// ── Busca binária — último concurso do ano ─────────────────────────────────────
+async function findLastDrawOfYear(year, maxId) {
+    let lo = 1, hi = maxId, ans = -1;
+    while (lo <= hi) {
+        const mid  = Math.floor((lo + hi) / 2);
+        let   draw = await fetchDraw(mid);
+
+        if (!draw) {
+            draw = await fetchDraw(mid - 1) || await fetchDraw(mid + 1);
+            if (!draw) return -1;
+        }
+
+        const y = parseInt(draw.dataApuracao.split('/')[2], 10);
+        if (y === year)    { ans = mid; lo = mid + 1; }
+        else if (y < year) { lo = mid + 1; }
+        else               { hi = mid - 1; }
+    }
+    return ans;
+}
+
+// ── Limpar tudo ────────────────────────────────────────────────────────────────
+function limparTudo() {
+    $('dezenas').value = '';
+    $('dezenas').focus();
+    resetUI();
+}
+
+function resetUI() {
+    $('resultadosBody').innerHTML = `
+        <tr><td colspan="4">
+            <div class="empty-state">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                </svg>
+                <p>Informe suas dezenas e o ano para começar</p>
+            </div>
+        </td></tr>`;
+    $('totalAno').textContent       = '—';
+    $('totalPremiadas').textContent = '—';
+    $('totalConcursos').textContent = '—';
+    $('legendaEst').classList.remove('visible');
+    setStatus('');
+    _cachedProxy     = null;
+    _cachedProxyName = '';
+    $('proxyInfo').style.display = 'none';
+}
+
+// ── Validação de entrada ───────────────────────────────────────────────────────
+function validarEntrada() {
+    const raw  = $('dezenas').value;
+    const nums = raw.split(/[\s,]+/).filter(Boolean).map(Number);
+    const unique = [...new Set(nums)];
+
+    if (unique.length !== 15) {
+        alert(`Informe exatamente 15 dezenas únicas.\nVocê informou ${unique.length} número(s) único(s).`);
+        return null;
+    }
+    if (unique.some(n => isNaN(n) || n < 1 || n > 25)) {
+        alert('Todas as dezenas devem estar entre 1 e 25.');
+        return null;
+    }
+
+    const ano = parseInt($('ano').value, 10);
+    if (isNaN(ano) || ano < 2003) {
+        alert('Ano inválido. A Lotofácil existe desde 2003.');
+        return null;
+    }
+
+    return { uniqueNums: unique, ano };
+}
+
+// ── Monta linha da tabela ────────────────────────────────────────────────────
+function buildRow(draw, hits, prize, fromAPI, isAccum) {
+    const badgeClass = `badge badge-${hits <= 13 ? hits : (hits === 14 ? 14 : 15)}`;
+
+    let prizeClass = 'prize-real';
+    let prizeExtra = '';
+    if (isAccum && fromAPI)    { prizeClass = 'prize-accum'; prizeExtra = '<span class="est-tag">ACUMULADO</span>'; }
+    if (!fromAPI)              { prizeClass = 'prize-est';   prizeExtra = '<span class="est-tag">EST*</span>'; }
+
+    const tr = document.createElement('tr');
+    tr.setAttribute('data-concurso', draw.numero);
+    tr.setAttribute('data-hits', hits);
+    tr.innerHTML = `
+        <td class="td-concurso">#${draw.numero}</td>
+        <td class="td-data">${draw.dataApuracao}</td>
+        <td><span class="${badgeClass}">${hits}</span></td>
+        <td class="${prizeClass}">${fmtBRL(prize)}${prizeExtra}</td>
+    `;
+    return tr;
+}
+
+// ── Verificação principal ──────────────────────────────────────────────────────
+async function verificarApostas() {
+    const entrada = validarEntrada();
+    if (!entrada) return;
+
+    const { uniqueNums, ano } = entrada;
+    const btn = $('btnVerificar');
+
+    btn.disabled = true;
+    $('resultadosBody').innerHTML = '';
+    $('legendaEst').classList.remove('visible');
+    $('totalAno').textContent       = '—';
+    $('totalPremiadas').textContent = '—';
+    $('totalConcursos').textContent = '—';
+    _cachedProxy     = null;
+    _cachedProxyName = '';
+    $('proxyInfo').style.display = 'none';
+
+    let totalGanhos       = 0;
+    let totalPremiadas    = 0;
+    let temValorEstimado  = false;
+
+    // Concursos premiados que ficaram sem valor (para o segundo passe)
+    const pendingPrize = [];  // { drawNum, hits, rowElement }
+
+    try {
+        setStatus('Conectando à API da Caixa — testando rotas disponíveis…');
+
+        const latest = await fetchDraw('', setStatus);
+        if (!latest) throw new Error(
+            'Nenhuma rota de conexão disponível (8 proxies testados). ' +
+            'O antivírus pode estar bloqueando requisições externas — tente desativar ' +
+            'temporariamente a proteção web, ou use uma aba anônima sem extensões.'
+        );
+
+        const latestYear = parseInt(latest.dataApuracao.split('/')[2], 10);
+        if (ano > latestYear) {
+            alert(`O ano ${ano} ainda não possui sorteios registrados. O último ano disponível é ${latestYear}.`);
+            setStatus('');
+            btn.disabled = false;
+            return;
+        }
+
+        setStatus(`Mapeando concursos de ${ano}… (busca binária em ${latest.numero} concursos)`);
+
+        const firstId = await findFirstDrawOfYear(ano, latest.numero);
+        if (firstId === -1) {
+            setStatus('Falha ao mapear os concursos. Verifique sua conexão e tente novamente.', true);
+            btn.disabled = false;
+            return;
+        }
+
+        const lastId = (ano === latestYear)
+            ? latest.numero
+            : await findLastDrawOfYear(ano, latest.numero);
+
+        if (lastId === -1) {
+            setStatus('Falha ao determinar o último concurso do ano.', true);
+            btn.disabled = false;
+            return;
+        }
+
+        const totalConcursos = lastId - firstId + 1;
+        $('totalConcursos').textContent = totalConcursos;
+        setStatus(`${totalConcursos} concursos encontrados — baixando resultados…`);
+
+        let verificados = 0;
+        const LOTE = 8;
+
+        // ══════════════════════════════════════════════════════════════════
+        // PASSE 1 — Varredura principal via proxy cacheado
+        // ══════════════════════════════════════════════════════════════════
+        for (let i = firstId; i <= lastId; i += LOTE) {
+            const promises = [];
+            for (let j = i; j < i + LOTE && j <= lastId; j++) {
+                promises.push(fetchDrawWithRetry(j, 3));
+            }
+
+            const lote = await Promise.all(promises);
+
+            lote.forEach(draw => {
+                if (!draw || !Array.isArray(draw.listaDezenas)) return;
+
+                const drawSet = new Set(draw.listaDezenas.map(d => parseInt(d, 10)));
+                const hits    = uniqueNums.filter(n => drawSet.has(n)).length;
+
+                if (hits < 11) return;
+
+                totalPremiadas++;
+
+                const { prize, fromAPI, isAccum } = extractPrize(draw, hits);
+
+                if (prize > 0) totalGanhos += prize;
+
+                const tr = buildRow(draw, hits, prize, fromAPI, isAccum);
+                $('resultadosBody').appendChild(tr);
+
+                // Se não conseguiu o valor da API, marca para o segundo passe
+                if (!fromAPI) {
+                    pendingPrize.push({ drawNum: draw.numero, hits, tr });
+                }
+            });
+
+            verificados += lote.length;
+            const pct = Math.round((verificados / totalConcursos) * 100);
+            setStatus(`Analisando… ${verificados}/${totalConcursos} concursos (${pct}%)`);
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // PASSE 2 — Deep fetch para concursos com prêmio pendente
+        // Busca individual em fontes alternativas para resolver os EST
+        // ══════════════════════════════════════════════════════════════════
+        if (pendingPrize.length > 0) {
+            setStatus(`Resolvendo ${pendingPrize.length} prêmio(s) pendente(s) — buscando fontes alternativas…`);
+
+            let resolved = 0;
+
+            for (let i = 0; i < pendingPrize.length; i++) {
+                const { drawNum, hits, tr } = pendingPrize[i];
+
+                setStatus(`Deep fetch ${i + 1}/${pendingPrize.length}: concurso #${drawNum}…`);
+
+                // Aguarda um pouco entre requisições para não sobrecarregar
+                if (i > 0) await new Promise(r => setTimeout(r, 400));
+
+                const deepDraw = await deepFetchDraw(drawNum);
+
+                if (deepDraw) {
+                    const { prize, fromAPI, isAccum } = extractPrize(deepDraw, hits);
+
+                    if (fromAPI) {
+                        resolved++;
+
+                        // Atualiza a linha na tabela
+                        const newTr = buildRow(deepDraw, hits, prize, true, isAccum);
+                        tr.innerHTML = newTr.innerHTML;
+
+                        // Recalcula totais — remove EST, adiciona valor real
+                        if (prize > 0) totalGanhos += prize;
+                    }
+                }
+            }
+
+            // Reconta quantos ainda ficaram pendentes
+            const stillPending = pendingPrize.length - resolved;
+            temValorEstimado = stillPending > 0;
+
+            if (resolved > 0) {
+                setStatus(
+                    `Deep fetch resolveu ${resolved}/${pendingPrize.length} prêmio(s)` +
+                    (stillPending > 0 ? ` — ${stillPending} ainda estimado(s)` : ''),
+                    false
+                );
+                await new Promise(r => setTimeout(r, 1500));
+            }
+        }
+
+        // ── Resultados finais ──────────────────────────────────────────────────
+        if (temValorEstimado) $('legendaEst').classList.add('visible');
+
+        if (totalPremiadas === 0) {
+            $('resultadosBody').innerHTML = `
+                <tr><td colspan="4">
+                    <div class="empty-state">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/>
+                        </svg>
+                        <p>Nenhum prêmio encontrado em ${totalConcursos} concurso(s) de ${ano}</p>
+                    </div>
+                </td></tr>`;
+        }
+
+        $('totalAno').textContent       = fmtBRL(totalGanhos);
+        $('totalPremiadas').textContent = totalPremiadas;
+        setStatus(`Verificação concluída — ${totalConcursos} concursos analisados`, true);
+
+    } catch (err) {
+        setStatus(`Erro: ${err.message}`, true);
+        console.error('[Lotofácil v7]', err);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    $('ano').value = new Date().getFullYear();
+
+    $('dezenas').addEventListener('input', function () {
+        this.value = this.value.replace(/[^0-9\s,]/g, '');
+    });
+
+    $('dezenas').addEventListener('keydown', e => {
+        if (e.key === 'Enter') verificarApostas();
+    });
+});
+</script>
+</body>
+</html>
