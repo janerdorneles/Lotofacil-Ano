@@ -384,11 +384,70 @@
         footer {
             text-align: center;
             padding: 5px;
-            color: var(--text-dim);
             font-size: 0.8rem;
-            border-top: 1px solid var(--secondary);
-	    color: rgba(122, 122, 144, 0.60);
+            border-top: 1px solid var(--border);
+            color: rgba(122, 122, 144, 0.60);
         }
+        /* ── v8: AÇÕES (relatório TXT) ── */
+        .action-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+        }
+
+        .action-btn {
+            flex: 1;
+            min-width: 200px;
+            text-align: center;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        label.action-btn { cursor: pointer; }
+
+        /* ── v8: BADGE DO CACHE ── */
+        .cache-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 14px;
+            padding: 8px 14px;
+            background: rgba(0,229,160,0.06);
+            border: 1px solid rgba(0,229,160,0.18);
+            border-radius: 8px;
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--success);
+            letter-spacing: 0.5px;
+        }
+
+        .cache-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 8px rgba(0,229,160,0.6);
+            flex-shrink: 0;
+        }
+
+        .cache-clear {
+            margin-left: auto;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.12);
+            color: var(--muted);
+            font-family: var(--mono);
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: color 0.2s, border-color 0.2s;
+        }
+
+        .cache-clear:hover { color: var(--warn); border-color: var(--warn); }
+
     </style>
 </head>
 <body>
@@ -431,6 +490,22 @@
 
         <div id="proxyInfo" class="proxy-info" style="display:none;">
             <span class="proxy-dot"></span><span id="proxyLabel"></span>
+        </div>
+
+        <div class="action-row">
+            <button id="btnRelatorio" class="btn btn-ghost action-btn" onclick="baixarRelatorioTXT()">
+                ⬇ Baixar relatório do ano (TXT)
+            </button>
+            <label id="lblImport" class="btn btn-ghost action-btn" for="fileImport">
+                ⬆ Carregar relatório (TXT)
+            </label>
+            <input type="file" id="fileImport" accept=".txt,text/plain" style="display:none;">
+        </div>
+
+        <div id="cacheBadge" class="cache-badge" style="display:none;">
+            <span class="cache-dot"></span>
+            <span id="cacheBadgeText"></span>
+            <button id="btnLimparCache" class="cache-clear" onclick="limparCache()">limpar</button>
         </div>
     </div>
 
@@ -481,7 +556,7 @@
         </div>
     </div>
 
-    <footer>Desenvolvido por Janer Dorneles • Lotofácil Ano</footer>
+    <footer>Desenvolvido por Janer Dorneles • Lotofácil Ano · v8 (cache + relatório TXT)</footer>
 
 </div><!-- /container -->
 
@@ -598,6 +673,10 @@ function showProxyInfo(name) {
 
 // ── Fetch principal: proxies Caixa + fallback API independente ────────────────
 async function fetchDraw(id = '', statusCb = null) {
+    // v8 — cache local: concursos já apurados são imutáveis. ID vazio ('')
+    // sempre vai à rede para descobrir o último concurso (deve ficar atual).
+    if (id !== '' && DRAW_CACHE.has(Number(id))) return DRAW_CACHE.get(Number(id));
+
     const targetUrl = CAIXA_URL + id;
 
     const queue = _cachedProxy
@@ -631,6 +710,7 @@ async function fetchDraw(id = '', statusCb = null) {
                 _cachedProxyName = proxy.name;
                 showProxyInfo(proxy.name);
             }
+            cacheDraw(data);
             return data;
 
         } catch (_) { /* timeout ou erro de rede — tenta próximo */ }
@@ -999,155 +1079,48 @@ async function verificarApostas() {
     const btn = $('btnVerificar');
 
     btn.disabled = true;
+    disableActions(true);
     $('resultadosBody').innerHTML = '';
     $('legendaEst').classList.remove('visible');
     $('totalAno').textContent       = '—';
     $('totalPremiadas').textContent = '—';
     $('totalConcursos').textContent = '—';
-    _cachedProxy     = null;
-    _cachedProxyName = '';
-    $('proxyInfo').style.display = 'none';
 
-    let totalGanhos       = 0;
-    let totalPremiadas    = 0;
-    let temValorEstimado  = false;
-
-    // Concursos premiados que ficaram sem valor (para o segundo passe)
-    const pendingPrize = [];  // { drawNum, hits, rowElement }
+    let totalGanhos      = 0;
+    let totalPremiadas   = 0;
+    let temValorEstimado = false;
 
     try {
-        setStatus('Conectando à API da Caixa — testando rotas disponíveis…');
+        // ensureYearCached resolve TUDO: usa cache quando dá, baixa só o que falta.
+        const draws = await ensureYearCached(ano, setStatus);
 
-        const latest = await fetchDraw('', setStatus);
-        if (!latest) throw new Error(
-            'Nenhuma rota de conexão disponível (8 proxies testados). ' +
-            'O antivírus pode estar bloqueando requisições externas — tente desativar ' +
-            'temporariamente a proteção web, ou use uma aba anônima sem extensões.'
-        );
-
-        const latestYear = parseInt(latest.dataApuracao.split('/')[2], 10);
-        if (ano > latestYear) {
-            alert(`O ano ${ano} ainda não possui sorteios registrados. O último ano disponível é ${latestYear}.`);
-            setStatus('');
-            btn.disabled = false;
+        if (!draws || draws.length === 0) {
+            setStatus('Nenhum concurso encontrado para esse ano.', true);
             return;
         }
 
-        setStatus(`Mapeando concursos de ${ano}… (busca binária em ${latest.numero} concursos)`);
-
-        const firstId = await findFirstDrawOfYear(ano, latest.numero);
-        if (firstId === -1) {
-            setStatus('Falha ao mapear os concursos. Verifique sua conexão e tente novamente.', true);
-            btn.disabled = false;
-            return;
-        }
-
-        const lastId = (ano === latestYear)
-            ? latest.numero
-            : await findLastDrawOfYear(ano, latest.numero);
-
-        if (lastId === -1) {
-            setStatus('Falha ao determinar o último concurso do ano.', true);
-            btn.disabled = false;
-            return;
-        }
-
-        const totalConcursos = lastId - firstId + 1;
+        const totalConcursos = draws.length;
         $('totalConcursos').textContent = totalConcursos;
-        setStatus(`${totalConcursos} concursos encontrados — baixando resultados…`);
 
-        let verificados = 0;
-        const LOTE = 8;
+        const apostaSet = new Set(uniqueNums);
 
-        // ══════════════════════════════════════════════════════════════════
-        // PASSE 1 — Varredura principal via proxy cacheado
-        // ══════════════════════════════════════════════════════════════════
-        for (let i = firstId; i <= lastId; i += LOTE) {
-            const promises = [];
-            for (let j = i; j < i + LOTE && j <= lastId; j++) {
-                promises.push(fetchDrawWithRetry(j, 3));
-            }
+        for (const draw of draws) {
+            if (!Array.isArray(draw.listaDezenas)) continue;
 
-            const lote = await Promise.all(promises);
+            const drawSet = new Set(draw.listaDezenas.map(d => parseInt(d, 10)));
+            let hits = 0;
+            for (const n of apostaSet) if (drawSet.has(n)) hits++;
 
-            lote.forEach(draw => {
-                if (!draw || !Array.isArray(draw.listaDezenas)) return;
+            if (hits < 11) continue;
 
-                const drawSet = new Set(draw.listaDezenas.map(d => parseInt(d, 10)));
-                const hits    = uniqueNums.filter(n => drawSet.has(n)).length;
+            totalPremiadas++;
+            const { prize, fromAPI, isAccum } = extractPrize(draw, hits);
+            if (prize > 0) totalGanhos += prize;
+            if (!fromAPI) temValorEstimado = true;
 
-                if (hits < 11) return;
-
-                totalPremiadas++;
-
-                const { prize, fromAPI, isAccum } = extractPrize(draw, hits);
-
-                if (prize > 0) totalGanhos += prize;
-
-                const tr = buildRow(draw, hits, prize, fromAPI, isAccum);
-                $('resultadosBody').appendChild(tr);
-
-                // Se não conseguiu o valor da API, marca para o segundo passe
-                if (!fromAPI) {
-                    pendingPrize.push({ drawNum: draw.numero, hits, tr });
-                }
-            });
-
-            verificados += lote.length;
-            const pct = Math.round((verificados / totalConcursos) * 100);
-            setStatus(`Analisando… ${verificados}/${totalConcursos} concursos (${pct}%)`);
+            $('resultadosBody').appendChild(buildRow(draw, hits, prize, fromAPI, isAccum));
         }
 
-        // ══════════════════════════════════════════════════════════════════
-        // PASSE 2 — Deep fetch para concursos com prêmio pendente
-        // Busca individual em fontes alternativas para resolver os EST
-        // ══════════════════════════════════════════════════════════════════
-        if (pendingPrize.length > 0) {
-            setStatus(`Resolvendo ${pendingPrize.length} prêmio(s) pendente(s) — buscando fontes alternativas…`);
-
-            let resolved = 0;
-
-            for (let i = 0; i < pendingPrize.length; i++) {
-                const { drawNum, hits, tr } = pendingPrize[i];
-
-                setStatus(`Deep fetch ${i + 1}/${pendingPrize.length}: concurso #${drawNum}…`);
-
-                // Aguarda um pouco entre requisições para não sobrecarregar
-                if (i > 0) await new Promise(r => setTimeout(r, 400));
-
-                const deepDraw = await deepFetchDraw(drawNum);
-
-                if (deepDraw) {
-                    const { prize, fromAPI, isAccum } = extractPrize(deepDraw, hits);
-
-                    if (fromAPI) {
-                        resolved++;
-
-                        // Atualiza a linha na tabela
-                        const newTr = buildRow(deepDraw, hits, prize, true, isAccum);
-                        tr.innerHTML = newTr.innerHTML;
-
-                        // Recalcula totais — remove EST, adiciona valor real
-                        if (prize > 0) totalGanhos += prize;
-                    }
-                }
-            }
-
-            // Reconta quantos ainda ficaram pendentes
-            const stillPending = pendingPrize.length - resolved;
-            temValorEstimado = stillPending > 0;
-
-            if (resolved > 0) {
-                setStatus(
-                    `Deep fetch resolveu ${resolved}/${pendingPrize.length} prêmio(s)` +
-                    (stillPending > 0 ? ` — ${stillPending} ainda estimado(s)` : ''),
-                    false
-                );
-                await new Promise(r => setTimeout(r, 1500));
-            }
-        }
-
-        // ── Resultados finais ──────────────────────────────────────────────────
         if (temValorEstimado) $('legendaEst').classList.add('visible');
 
         if (totalPremiadas === 0) {
@@ -1165,14 +1138,533 @@ async function verificarApostas() {
         $('totalAno').textContent       = fmtBRL(totalGanhos);
         $('totalPremiadas').textContent = totalPremiadas;
         setStatus(`Verificação concluída — ${totalConcursos} concursos analisados`, true);
+        updateCacheBadge();
 
     } catch (err) {
-        setStatus(`Erro: ${err.message}`, true);
-        console.error('[Lotofácil v7]', err);
+        if (err && err.code === 'FUTURE_YEAR') {
+            alert(err.message);
+            setStatus('');
+        } else {
+            setStatus(`Erro: ${err.message}`, true);
+            console.error('[Lotofácil v8]', err);
+        }
     } finally {
         btn.disabled = false;
+        disableActions(false);
     }
 }
+
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  v8 — CACHE LOCAL + RELATÓRIO TXT
+//  Concursos já apurados são FATOS IMUTÁVEIS: uma vez sorteado, um concurso
+//  nunca muda. Por isso podemos guardá-los em memória (e exportá-los em TXT)
+//  para evitar centenas de requisições repetidas à API da Caixa.
+// ═════════════════════════════════════════════════════════════════════════════
+
+// concurso (Number) -> objeto no formato nativo da Caixa (listaDezenas + listaRateioPremio)
+const DRAW_CACHE = new Map();
+// ano (Number) -> { firstId, lastId, complete, generated }
+const YEAR_COVERAGE = new Map();
+
+// hits -> faixa Caixa (faixa 1 = 15 acertos … faixa 5 = 11 acertos)
+const HITS_TO_FAIXA = { 15: 1, 14: 2, 13: 3, 12: 4, 11: 5 };
+
+const ERRO_PROXIES =
+    'Nenhuma rota de conexão disponível (8 proxies testados). ' +
+    'O antivírus pode estar bloqueando requisições externas — tente desativar ' +
+    'temporariamente a proteção web, ou use uma aba anônima sem extensões.';
+
+// ── Utilidades de data ──────────────────────────────────────────────────────
+function yearOf(draw) {
+    // dataApuracao no formato DD/MM/AAAA
+    return parseInt(String(draw.dataApuracao).split('/')[2], 10);
+}
+
+function todayBR() {
+    const d = new Date();
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return `${dd}/${mm}/${d.getFullYear()}`;
+}
+
+// ── Núcleo do cache ─────────────────────────────────────────────────────────
+/**
+ * Guarda um draw no cache. Se já existir uma cópia, mantém a que tiver
+ * dados de prêmio válidos (uma cópia "melhor" nunca é trocada por uma pior).
+ */
+function cacheDraw(draw) {
+    if (!draw || !draw.numero) return;
+    const key = Number(draw.numero);
+    const atual = DRAW_CACHE.get(key);
+    if (atual && hasValidPrizeData(atual) && !hasValidPrizeData(draw)) return;
+    DRAW_CACHE.set(key, draw);
+}
+
+function getCachedDraw(id) {
+    return DRAW_CACHE.get(Number(id)) || null;
+}
+
+/** Verifica se todos os IDs de firstId..lastId estão no cache (sem buracos). */
+function cacheIsContiguous(firstId, lastId) {
+    if (firstId == null || lastId == null || lastId < firstId) return false;
+    for (let i = firstId; i <= lastId; i++) {
+        if (!DRAW_CACHE.has(i)) return false;
+    }
+    return true;
+}
+
+/** Lista, ordenada por concurso, os draws cacheados no intervalo [firstId, lastId]. */
+function collectYear(firstId, lastId) {
+    const out = [];
+    for (let i = firstId; i <= lastId; i++) {
+        const d = DRAW_CACHE.get(i);
+        if (d) out.push(d);
+    }
+    return out;
+}
+
+/**
+ * Procura, no cache, o PRIMEIRO concurso do ano `year`, mas só retorna um valor
+ * se conseguir PROVAR que é o primeiro — i.e. se o concurso imediatamente
+ * anterior também está no cache e pertence ao ano anterior. (Concursos têm
+ * numeração sequencial e datas monotônicas, então o vizinho prova o limite.)
+ */
+function cachedFirstOfYear(year) {
+    let menor = null;
+    for (const [num, draw] of DRAW_CACHE) {
+        if (yearOf(draw) === year && (menor === null || num < menor)) menor = num;
+    }
+    if (menor === null) return -1;
+    if (menor === 1) return 1; // concurso #1 é, por definição, o primeiro de todos
+    const anterior = DRAW_CACHE.get(menor - 1);
+    if (anterior && yearOf(anterior) === year - 1) return menor;
+    return -1; // não dá pra provar só com o cache
+}
+
+/** Análogo: último concurso do ano, provado pelo vizinho posterior (ano seguinte). */
+function cachedLastOfYear(year) {
+    let maior = null;
+    for (const [num, draw] of DRAW_CACHE) {
+        if (yearOf(draw) === year && (maior === null || num > maior)) maior = num;
+    }
+    if (maior === null) return -1;
+    const posterior = DRAW_CACHE.get(maior + 1);
+    if (posterior && yearOf(posterior) === year + 1) return maior;
+    return -1;
+}
+
+// ── Resolução dos limites do ano (gasta o mínimo possível de rede) ───────────
+async function resolveFirstId(year, cov, latestNum, statusCb) {
+    if (cov && cov.firstId) return cov.firstId;          // metadado importado
+    const c = cachedFirstOfYear(year);                   // provado pelo cache
+    if (c !== -1) return c;
+    if (statusCb) statusCb(`Mapeando início de ${year}… (busca binária)`);
+    return await findFirstDrawOfYear(year, latestNum);   // busca binária
+}
+
+async function resolveLastId(year, cov, latestYear, latestNum, statusCb) {
+    if (year === latestYear) return latestNum;           // ano corrente: fim = último existente
+    const c = cachedLastOfYear(year);                    // provado pelo cache
+    if (c !== -1) return c;
+    if (cov && cov.lastId) {
+        // metadado importado — confiável só se confirmarmos o limite superior
+        // com 1 fetch do concurso seguinte.
+        const seguinte = await fetchDrawWithRetry(cov.lastId + 1, 3);
+        if (seguinte) {
+            cacheDraw(seguinte);
+            if (yearOf(seguinte) > year) return cov.lastId;  // confirmado: era mesmo o fim
+            // senão, o metadado estava defasado → cai na busca binária
+        }
+    }
+    if (statusCb) statusCb(`Mapeando fim de ${year}… (busca binária)`);
+    return await findLastDrawOfYear(year, latestNum);
+}
+
+/**
+ * Garante que TODOS os concursos do ano estejam no cache, baixando apenas o que
+ * faltar. Retorna a lista ordenada de draws do ano.
+ *
+ * Caminhos:
+ *   • Ano fechado + totalmente cacheado (e contíguo) → ZERO requisições.
+ *   • Ano corrente → busca o último concurso e completa só o "rabo" que faltar.
+ *   • Caso geral → resolve limites e baixa os buracos em lotes.
+ */
+async function ensureYearCached(year, statusCb = null, opts = {}) {
+    const resolvePrizes = opts.resolvePrizes !== false;
+    const anoAtualLocal = new Date().getFullYear();
+    const cov = YEAR_COVERAGE.get(year);
+
+    // ── Atalho 100% offline: ano comprovadamente fechado e completo no cache ──
+    // Usa o relógio LOCAL (não a API) para saber que o ano já passou.
+    if (year < anoAtualLocal && cov && cov.complete &&
+        cov.firstId && cov.lastId && cacheIsContiguous(cov.firstId, cov.lastId)) {
+        if (statusCb) statusCb(`Ano ${year} já está em cache — consulta instantânea (offline).`, true);
+        return collectYear(cov.firstId, cov.lastId);
+    }
+
+    // ── Precisamos da rede: descobrir o último concurso publicado ──
+    if (statusCb) statusCb('Conectando à API da Caixa — testando rotas disponíveis…');
+    const latest = await fetchDraw('', statusCb);
+    if (!latest) throw new Error(ERRO_PROXIES);
+    cacheDraw(latest);
+
+    const latestYear = yearOf(latest);
+    const latestNum  = Number(latest.numero);
+
+    if (year > latestYear) {
+        const e = new Error(`O ano ${year} ainda não possui sorteios registrados. O último ano disponível é ${latestYear}.`);
+        e.code = 'FUTURE_YEAR';
+        throw e;
+    }
+
+    // ── Limites do ano ──
+    const firstId = await resolveFirstId(year, cov, latestNum, statusCb);
+    if (firstId === -1) throw new Error('Falha ao mapear o primeiro concurso do ano. Verifique sua conexão e tente novamente.');
+
+    const lastId = await resolveLastId(year, cov, latestYear, latestNum, statusCb);
+    if (lastId === -1) throw new Error('Falha ao determinar o último concurso do ano.');
+
+    // ── Baixa apenas os concursos que faltam (em lotes) ──
+    const faltantes = [];
+    for (let i = firstId; i <= lastId; i++) {
+        if (!DRAW_CACHE.has(i)) faltantes.push(i);
+    }
+
+    const totalAno = lastId - firstId + 1;
+    if (faltantes.length === 0) {
+        if (statusCb) statusCb(`${totalAno} concursos já em cache — nada a baixar.`, true);
+    } else {
+        const LOTE = 8;
+        let baixados = 0;
+        for (let i = 0; i < faltantes.length; i += LOTE) {
+            const bloco = faltantes.slice(i, i + LOTE);
+            const res = await Promise.all(bloco.map(id => fetchDrawWithRetry(id, 3)));
+            res.forEach(d => { if (d) cacheDraw(d); });
+            baixados += bloco.length;
+            const pct = Math.round((baixados / faltantes.length) * 100);
+            if (statusCb) statusCb(`Baixando concursos de ${year}… ${baixados}/${faltantes.length} novos (${pct}%)`);
+        }
+    }
+
+    // ── 2º passe: resolve prêmios faltantes (raro — a API da Caixa já manda o
+    //    rateio completo de todas as faixas numa única resposta) ──
+    if (resolvePrizes) {
+        const semPremio = [];
+        for (let i = firstId; i <= lastId; i++) {
+            const d = DRAW_CACHE.get(i);
+            if (d && !hasValidPrizeData(d)) semPremio.push(i);
+        }
+        for (let i = 0; i < semPremio.length; i++) {
+            if (statusCb) statusCb(`Resolvendo prêmios pendentes ${i + 1}/${semPremio.length} (concurso #${semPremio[i]})…`);
+            if (i > 0) await new Promise(r => setTimeout(r, 400));
+            const deep = await deepFetchDraw(semPremio[i]);
+            if (deep) cacheDraw(deep);
+        }
+    }
+
+    // ── Registra cobertura. complete=true SÓ quando o ano já estava fechado na
+    //    geração (latestYear > year) E o cache é contíguo. Assim "completo" nunca
+    //    é gravado para um snapshot parcial do ano corrente. ──
+    const contiguo = cacheIsContiguous(firstId, lastId);
+    YEAR_COVERAGE.set(year, {
+        firstId,
+        lastId,
+        complete: (latestYear > year) && contiguo,
+        generated: todayBR()
+    });
+
+    return collectYear(firstId, lastId);
+}
+
+// ── Serialização do relatório TXT ────────────────────────────────────────────
+/**
+ * Monta os tokens de prêmio "faixa:valor" de um draw, na ordem 15→11.
+ *   • valor por ganhador (pt-BR, com separador de milhar) quando conhecido
+ *   • ACUM  → faixa acumulou (0 ganhadores, prêmio 0)
+ *   • ?     → desconhecido (a API não retornou esse rateio)
+ */
+function buildPrizeTokens(draw) {
+    const rateios = Array.isArray(draw.listaRateioPremio) ? draw.listaRateioPremio : [];
+    const tokens = [];
+    for (const hits of [15, 14, 13, 12, 11]) {
+        const faixa = HITS_TO_FAIXA[hits];
+        let r = rateios.find(x => Number(x.faixa) === faixa);
+        if (!r) {
+            r = rateios.find(x => {
+                const desc = String(x.faixaDescricao ?? x.descricaoFaixa ?? x.descricao ?? '');
+                return new RegExp('\\b' + hits + '\\b').test(desc);
+            });
+        }
+        if (!r) { tokens.push(`${hits}:?`); continue; }
+
+        const val = parsePrizeValue(r.valorPremio ?? r.valor ?? r.premio ?? 0);
+        const win = parseInt(r.numeroDeGanhadores ?? r.ganhadores ?? r.qtdeGanhadores ?? -1, 10);
+
+        if (val > 0)        tokens.push(`${hits}:${val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        else if (win === 0) tokens.push(`${hits}:ACUM`);
+        else                tokens.push(`${hits}:?`);
+    }
+    return tokens.join(' ');
+}
+
+function serializeYearTXT(year) {
+    const cov = YEAR_COVERAGE.get(year);
+    const firstId = cov ? cov.firstId : null;
+    const lastId  = cov ? cov.lastId  : null;
+    const draws = (firstId && lastId)
+        ? collectYear(firstId, lastId)
+        : [...DRAW_CACHE.values()].filter(d => yearOf(d) === year).sort((a, b) => a.numero - b.numero);
+
+    const completo = (cov && cov.complete) ? 'sim' : 'parcial';
+    const hoje = todayBR();
+
+    const L = [];
+    L.push(`# ============================================================`);
+    L.push(`#  RELATÓRIO LOTOFÁCIL — ANO ${year}`);
+    L.push(`#  Gerado pelo Verificador Lotofácil em ${hoje}`);
+    L.push(`#  As 15 dezenas sorteadas de cada concurso + prêmio por faixa.`);
+    L.push(`#`);
+    L.push(`#  Formato de cada linha de dados:`);
+    L.push(`#    CONCURSO | DD/MM/AAAA | d1-d2-...-d15 | 15:val 14:val 13:val 12:val 11:val`);
+    L.push(`#  Prêmios: valor por ganhador (R$) · ACUM = acumulou · ? = desconhecido`);
+    L.push(`#  Linhas iniciadas por # são comentários e podem ser editadas livremente.`);
+    L.push(`# ============================================================`);
+    L.push(`@META ano=${year} primeiro=${firstId ?? '?'} ultimo=${lastId ?? '?'} completo=${completo} gerado=${hoje} total=${draws.length}`);
+    L.push(``);
+
+    for (const d of draws) {
+        const dezenas = d.listaDezenas
+            .map(x => String(parseInt(x, 10)).padStart(2, '0'))
+            .join('-');
+        L.push(`${d.numero} | ${d.dataApuracao} | ${dezenas} | ${buildPrizeTokens(d)}`);
+    }
+    L.push(``);
+    return L.join('\n');
+}
+
+function downloadText(filename, text) {
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function baixarRelatorioTXT() {
+    const ano = parseInt($('ano').value, 10);
+    if (isNaN(ano) || ano < 2003) {
+        alert('Informe um ano válido (a Lotofácil existe desde 2003) para gerar o relatório.');
+        return;
+    }
+
+    const btn = $('btnRelatorio');
+    btn.disabled = true;
+    disableActions(true);
+
+    try {
+        const draws = await ensureYearCached(ano, setStatus);
+        if (!draws || draws.length === 0) {
+            setStatus('Nenhum concurso encontrado para esse ano — nada a exportar.', true);
+            return;
+        }
+        const txt = serializeYearTXT(ano);
+        downloadText(`Lotofacil-${ano}.txt`, txt);
+        setStatus(`Relatório de ${ano} gerado — ${draws.length} concursos exportados.`, true);
+        updateCacheBadge();
+    } catch (err) {
+        if (err && err.code === 'FUTURE_YEAR') {
+            alert(err.message);
+            setStatus('');
+        } else {
+            setStatus(`Erro ao gerar relatório: ${err.message}`, true);
+            console.error('[Lotofácil v8]', err);
+        }
+    } finally {
+        btn.disabled = false;
+        disableActions(false);
+    }
+}
+
+// ── Importação do relatório TXT ───────────────────────────────────────────────
+/**
+ * Faz o parse de um relatório TXT. Tolerante: ignora linhas em branco e
+ * comentários (#), lê a linha @META se existir e valida cada linha de dados
+ * (data DD/MM/AAAA e 15 dezenas entre 1 e 25). Reconstrói listaRateioPremio a
+ * partir dos tokens de prêmio. Retorna { draws, meta, skipped }.
+ */
+function parseRelatorioTXT(texto) {
+    const linhas = texto.split(/\r?\n/);
+    const draws = [];
+    let meta = null;
+    let skipped = 0;
+
+    for (const linhaRaw of linhas) {
+        const linha = linhaRaw.trim();
+        if (!linha || linha.startsWith('#')) continue;
+
+        if (linha.startsWith('@META')) {
+            meta = {};
+            for (const par of linha.slice(5).trim().split(/\s+/)) {
+                const idx = par.indexOf('=');
+                if (idx > 0) meta[par.slice(0, idx)] = par.slice(idx + 1);
+            }
+            continue;
+        }
+
+        const partes = linha.split('|').map(s => s.trim());
+        if (partes.length < 3) { skipped++; continue; }
+
+        const numero = parseInt(partes[0], 10);
+        const data   = partes[1];
+        if (isNaN(numero) || !/^\d{2}\/\d{2}\/\d{4}$/.test(data)) { skipped++; continue; }
+
+        const dezNums = partes[2].split(/[-,\s]+/).filter(Boolean).map(d => parseInt(d, 10));
+        if (dezNums.length !== 15 || dezNums.some(n => isNaN(n) || n < 1 || n > 25)) { skipped++; continue; }
+
+        // Reconstrói rateios a partir dos tokens de prêmio (4ª coluna, opcional)
+        const rateios = [];
+        if (partes[3]) {
+            for (const tok of partes[3].split(/\s+/).filter(Boolean)) {
+                const m = tok.match(/^(\d{2}):(.+)$/);
+                if (!m) continue;
+                const hits  = parseInt(m[1], 10);
+                const faixa = HITS_TO_FAIXA[hits];
+                if (!faixa) continue;
+                const valStr = m[2];
+
+                let valorPremio = 0;
+                let numeroDeGanhadores = -1; // desconhecido por padrão
+                if (valStr === 'ACUM')   { valorPremio = 0; numeroDeGanhadores = 0; }
+                else if (valStr === '?') { valorPremio = 0; numeroDeGanhadores = -1; }
+                else                     { valorPremio = parsePrizeValue(valStr); numeroDeGanhadores = valorPremio > 0 ? 1 : -1; }
+
+                rateios.push({
+                    faixa,
+                    descricaoFaixa: `${hits} acertos`,
+                    valorPremio,
+                    numeroDeGanhadores
+                });
+            }
+        }
+
+        draws.push({
+            numero,
+            dataApuracao: data,
+            listaDezenas: dezNums.map(n => String(n).padStart(2, '0')),
+            listaRateioPremio: rateios
+        });
+    }
+
+    return { draws, meta, skipped };
+}
+
+async function carregarRelatorioTXT(file) {
+    try {
+        setStatus(`Lendo ${file.name}…`);
+        const texto = await file.text();
+        const { draws, meta, skipped } = parseRelatorioTXT(texto);
+
+        if (draws.length === 0) {
+            setStatus('Nenhum concurso válido encontrado no arquivo. Verifique o formato.', true);
+            return;
+        }
+
+        draws.forEach(cacheDraw);
+
+        // Ano: do @META, senão do primeiro draw.
+        const ano = meta && meta.ano ? parseInt(meta.ano, 10) : yearOf(draws[0]);
+
+        const nums = draws.map(d => Number(d.numero));
+        const firstId = (meta && meta.primeiro && meta.primeiro !== '?') ? parseInt(meta.primeiro, 10) : Math.min(...nums);
+        const lastId  = (meta && meta.ultimo  && meta.ultimo  !== '?') ? parseInt(meta.ultimo, 10)  : Math.max(...nums);
+
+        // Só marcamos "complete" se o arquivo afirmar completo=sim E tiver sido
+        // gerado num ano POSTERIOR ao ano dos dados (ou seja, ano já fechado na
+        // geração). Um snapshot do próprio ano corrente nunca vira "complete".
+        let genYear = null;
+        if (meta && meta.gerado && /^\d{2}\/\d{2}\/\d{4}$/.test(meta.gerado)) {
+            genYear = parseInt(meta.gerado.split('/')[2], 10);
+        }
+        const declaradoCompleto = !!(meta && meta.completo === 'sim');
+        const complete = declaradoCompleto && genYear !== null && genYear > ano && cacheIsContiguous(firstId, lastId);
+
+        YEAR_COVERAGE.set(ano, {
+            firstId,
+            lastId,
+            complete,
+            generated: (meta && meta.gerado) || todayBR()
+        });
+
+        $('ano').value = ano;
+
+        const anoAtualLocal = new Date().getFullYear();
+        const dica = complete
+            ? ' Consultas para este ano agora são instantâneas (offline).'
+            : (ano < anoAtualLocal
+                ? ' Faltam alguns concursos — a próxima consulta baixará só o que falta.'
+                : ' Ano corrente: a próxima consulta buscará apenas os concursos mais recentes.');
+
+        const mais = skipped > 0 ? ` (${skipped} linha(s) ignorada(s))` : '';
+        setStatus(`Relatório carregado: ${draws.length} concursos de ${ano}${mais}.${dica}`, true);
+        updateCacheBadge();
+
+    } catch (err) {
+        setStatus(`Erro ao ler o arquivo: ${err.message}`, true);
+        console.error('[Lotofácil v8] import', err);
+    }
+}
+
+// ── Badge do cache + utilidades de UI ─────────────────────────────────────────
+function updateCacheBadge() {
+    const badge = $('cacheBadge');
+    const txt   = $('cacheBadgeText');
+    if (!badge || !txt) return;
+
+    if (DRAW_CACHE.size === 0) {
+        badge.style.display = 'none';
+        return;
+    }
+
+    const porAno = {};
+    for (const d of DRAW_CACHE.values()) {
+        const y = yearOf(d);
+        porAno[y] = (porAno[y] || 0) + 1;
+    }
+    const anos = Object.keys(porAno).map(Number).sort((a, b) => a - b);
+    const resumo = anos.map(y => {
+        const cov = YEAR_COVERAGE.get(y);
+        const flag = cov && cov.complete ? '✓' : '~';
+        return `${y}: ${porAno[y]}${flag}`;
+    }).join('  ·  ');
+
+    txt.textContent = `Cache local — ${DRAW_CACHE.size} concurso(s)  [ ${resumo} ]   (✓ completo · ~ parcial)`;
+    badge.style.display = 'flex';
+}
+
+function limparCache() {
+    DRAW_CACHE.clear();
+    YEAR_COVERAGE.clear();
+    updateCacheBadge();
+    setStatus('Cache local esvaziado.', true);
+}
+
+function disableActions(state) {
+    const r = $('btnRelatorio');
+    const f = $('fileImport');
+    const l = $('lblImport');
+    if (r) r.disabled = state;
+    if (f) f.disabled = state;
+    if (l) {
+        l.style.pointerEvents = state ? 'none' : '';
+        l.style.opacity       = state ? '0.5'  : '';
+    }
+}
+
 
 // ── Init ───────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -1185,6 +1677,16 @@ document.addEventListener('DOMContentLoaded', () => {
     $('dezenas').addEventListener('keydown', e => {
         if (e.key === 'Enter') verificarApostas();
     });
+
+    // v8 — importação de relatório TXT
+    $('fileImport').addEventListener('change', e => {
+        const file = e.target.files && e.target.files[0];
+        if (file) {
+            carregarRelatorioTXT(file).finally(() => { e.target.value = ''; });
+        }
+    });
+
+    updateCacheBadge();
 });
 </script>
 </body>
